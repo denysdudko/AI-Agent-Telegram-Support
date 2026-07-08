@@ -1,0 +1,464 @@
+{
+  "name": "TG Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -928,
+        -224
+      ],
+      "id": "7bc95c2c-5edc-4943-9a47-1108ff331402",
+      "name": "Telegram Trigger",
+      "webhookId": "66b778ed-eb11-4caa-aacf-6cb4bee7582f",
+      "credentials": {
+        "telegramApi": {
+          "id": "NoTjlhmxAWh2FPOb",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $json.message;\n\nreturn [{\n  chat_id: msg.chat.id,\n  chat_title: msg.chat.title || null,\n  chat_type: msg.chat.type,\n\n  message_id: msg.message_id,\n\n  user_id: msg.from.id,\n\n  first_name: msg.from.first_name || null,\n  last_name: msg.from.last_name || null,\n\n  text: msg.text || \"\",\n\n  telegram_date: msg.date,\n\n  received_at: new Date().toISOString()\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        -224
+      ],
+      "id": "c8464e26-997b-4e8f-ae31-421b6aef4ef0",
+      "name": "Normalize Message"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "telegram_experts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "telegram_user_id",
+              "keyValue": "={{$json.user_id}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        -224
+      ],
+      "id": "82abe123-345d-4ecd-a27a-4e15fcd1bb0b",
+      "name": "Get a expert",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "XmS91VfSrwmTlXog",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f577279a-4186-4832-95dc-ebfc3805b7c0",
+              "leftValue": "={{ !!$json.telegram_user_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "={{ true }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -288,
+        -224
+      ],
+      "id": "99cfe869-5375-486f-bce4-c6bf4d206c96",
+      "name": "IF Expert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b59a10f-12b8-4b28-80c1-4514e3ccc4c5",
+              "leftValue": "={{ !!$json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "={{ false }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        96,
+        -128
+      ],
+      "id": "b573d5e2-3212-43d4-8b07-f028719f0393",
+      "name": "IF Runtime Exists"
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $('Normalize Message').item.json;\n\nreturn [{\n  chat_id: msg.chat_id,\n  chat_title: msg.chat_title,\n  user_id: msg.user_id,\n\n  user_name: [\n    msg.first_name,\n    msg.last_name\n  ].filter(Boolean).join(' '),\n\n  user_language: null,\n\n  status: 'waiting',\n\n  queue_version: 1,\n\n  expert_replied: false,\n\n  queue_started_at: new Date().toISOString(),\n  last_message_at: new Date().toISOString(),\n\n  runtime_state: {\n    messages: [\n      {\n        message_id: msg.message_id,\n        text: msg.text,\n        timestamp: new Date().toISOString()\n      }\n    ],\n\n    questions: [],\n\n    expert_reply: {\n      detected: false\n    },\n\n    escalation: {\n      sent_to_experts: false,\n      sent_to_user: false\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -32
+      ],
+      "id": "acdea517-e1c6-4a59-81d8-e32adc488a45",
+      "name": "Build New Runtime State"
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $json;\n\nconst msg = $('Normalize Message').item.json;\n\nconst runtime = state.runtime_state || {};\n\nconst messages = runtime.messages || [];\n\nmessages.push({\n  message_id: msg.message_id,\n  text: msg.text,\n  timestamp: new Date().toISOString()\n});\n\nruntime.messages = messages;\n\nreturn [{\n  id: state.id,\n\n  chat_title: msg.chat_title,\n\n  queue_version: (state.queue_version || 0) + 1,\n\n  last_message_at: new Date().toISOString(),\n\n  runtime_state: runtime\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        -224
+      ],
+      "id": "8201cea0-c1a7-4c25-a98d-462d6ed13a21",
+      "name": "Build Updated Runtime State"
+    },
+    {
+      "parameters": {
+        "tableId": "telegram_runtime_state",
+        "dataToSend": "autoMapInputData"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        592,
+        -32
+      ],
+      "id": "87f39222-9478-4a75-858a-72608c922f58",
+      "name": "Create Runtime State",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XmS91VfSrwmTlXog",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "telegram_runtime_state",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "queue_version",
+              "fieldValue": "={{ $json.queue_version }}"
+            },
+            {
+              "fieldId": "last_message_at",
+              "fieldValue": "={{ $json.last_message_at }}"
+            },
+            {
+              "fieldId": "runtime_state",
+              "fieldValue": "={{ $json.runtime_state }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        592,
+        -224
+      ],
+      "id": "96d9bb49-080b-4333-9e5a-4dcc0a1dd8d1",
+      "name": "Update Runtime State",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XmS91VfSrwmTlXog",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  runtime_id: $json.id,\n  queue_version: $json.queue_version\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -144
+      ],
+      "id": "f8f6c01e-0e56-42a2-bf47-dbd948004434",
+      "name": "Build RabbitMQ Payload"
+    },
+    {
+      "parameters": {
+        "mode": "exchange",
+        "exchange": "tg.support",
+        "exchangeType": "direct",
+        "routingKey": "delay",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmq",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        -144
+      ],
+      "id": "684ef0e8-5716-4ed2-a5f5-1f4537807b85",
+      "name": "Publish",
+      "credentials": {
+        "rabbitmq": {
+          "id": "oPDgNhEuN4l2nv7T",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE telegram_runtime_state\nSET\n    status = 'answered_by_expert',\n    expert_replied = true,\n    updated_at = NOW()\nWHERE\n    chat_id = {{ $('Normalize Message').item.json.chat_id }}\n    AND status = 'waiting'\n    AND expert_replied = false;",
+        "options": {
+          "queryReplacement": ""
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -80,
+        -304
+      ],
+      "id": "c662ee61-7ff5-48a5-9695-b542781f7303",
+      "name": "answered_by_expert",
+      "credentials": {
+        "postgres": {
+          "id": "waHdZul7xNZt1GpF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM telegram_runtime_state\nWHERE\n    chat_id = {{ $('Normalize Message').item.json.chat_id }}\n    AND user_id = {{ $('Normalize Message').item.json.user_id }}\n    AND status = 'waiting'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -80,
+        -128
+      ],
+      "id": "5a935430-4607-4afa-9cfe-292e638d110f",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "waHdZul7xNZt1GpF",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Message": {
+      "main": [
+        [
+          {
+            "node": "Get a expert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a expert": {
+      "main": [
+        [
+          {
+            "node": "IF Expert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Expert": {
+      "main": [
+        [
+          {
+            "node": "answered_by_expert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Runtime Exists": {
+      "main": [
+        [
+          {
+            "node": "Build Updated Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build New Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build New Runtime State": {
+      "main": [
+        [
+          {
+            "node": "Create Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Updated Runtime State": {
+      "main": [
+        [
+          {
+            "node": "Update Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Runtime State": {
+      "main": [
+        [
+          {
+            "node": "Build RabbitMQ Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Runtime State": {
+      "main": [
+        [
+          {
+            "node": "Build RabbitMQ Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RabbitMQ Payload": {
+      "main": [
+        [
+          {
+            "node": "Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "IF Runtime Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5800fa65-7246-43b5-9c3e-dfc32598804f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f8634e4e8790807446839796d8d74c248c8c137510e6226f5363cd6c71a21c87"
+  },
+  "nodeGroups": [],
+  "id": "Htdtst255TE4e5GJ",
+  "tags": []
+}

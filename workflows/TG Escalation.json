@@ -1,0 +1,521 @@
+{
+  "name": "TG Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "queue": "tg.escalation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rabbitmqTrigger",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        -32
+      ],
+      "id": "a3a02bf4-c4dc-4456-a353-16d46a5df4a6",
+      "name": "RabbitMQ Trigger",
+      "credentials": {
+        "rabbitmq": {
+          "id": "oPDgNhEuN4l2nv7T",
+          "name": "RabbitMQ account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = JSON.parse($json.content);\n\nreturn [payload];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -768,
+        -32
+      ],
+      "id": "97798509-ba9e-4432-82ea-c12edf90d960",
+      "name": "Parse Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ai = $json;\n\nconst state = $('Load Runtime State').item.json;\n\nconst questions = (ai.questions || [])\n  .map((q, i) => `${i + 1}. ${q}`)\n  .join('\\n');\n\nconst firstMessageId =\n  state.runtime_state.messages?.[0]?.message_id;\n\nconst internalChatId =\n  String(state.chat_id).replace('-100', '');\n\nconst messageLink =\n  `https://t.me/c/${internalChatId}/${firstMessageId}`;\n\nconst messageCount =\n  state.runtime_state.messages?.length || 0;\n\nconst expertMessage = `🔔 Звернення #${state.id}\n\n<b>Група:</b>\n${state.chat_title || 'Невідома група'}\n\n<b>Користувач:</b>\n${state.user_name || 'Невідомий користувач'}\n\n<b>Telegram ID:</b>\n${state.user_id}\n\n<b>Короткий опис:</b>\n${ai.topic}\n\n<b>Питання:</b>\n${questions}\n\n<b>Посилання:</b>\n<a href=\"${messageLink}\">Відкрити повідомлення</a>\n\n<b>Повідомлень у зверненні:</b>\n${messageCount}`;\n\nreturn [{\n  ...state,\n  ...ai,\n  expert_message: expertMessage\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -144
+      ],
+      "id": "bc9ee5f8-d60e-49a6-9482-16b9dd1f2bd3",
+      "name": "Build Escalation Message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "08c5575e-915c-4c90-be81-324bea25608d",
+              "leftValue": "={{ $json.queue_version }}",
+              "rightValue": "={{ $('Parse Payload').item.json.queue_version }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "e86be0ea-0b33-4aaf-aad9-2d6a7e144a44",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "waiting",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -352,
+        -32
+      ],
+      "id": "f6479ad8-0e9a-4654-8215-29aa26f87588",
+      "name": "IF Status Waiting"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an orchestration agent for Telegram support groups.\n\nAnalyze all user messages and return ONLY valid JSON.\n\nTasks:\n\n1. Detect the language used by the user.\n2. Extract actual questions from the conversation.\n3. Determine the main topic of the request.\nRules:\n- Ignore greetings.\n- Ignore thanks.\n- Ignore small talk.\n- Return a short business topic.\n- Maximum 10 words.\n- Do not describe the conversation.\n- Describe only the user's issue, request or question.\n4. Determine whether expert escalation is required.\nRules:\nneeds_escalation = false if the conversation contains only:\n- greetings\n- thanks\n- acknowledgements\n- small talk\n- messages without a question, request or problem\nneeds_escalation = true if the user:\n- asks a question\n- reports a problem\n- requests help\n- requests information\n- creates a support request\n\nQuestions must be concise.\nIgnore greetings and small talk when extracting questions.\n\nIf there are no explicit questions but there is a problem or request, convert it into a concise question.\n\nlanguage must be one of:\nru\nuk\npl\nen\nother\nReturn only these exact values.\n\nDo not answer the user.\nDo not generate messages for experts.\nOnly analyze the conversation.\n\nReturn ONLY valid JSON."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -144,
+        -48
+      ],
+      "id": "edc3c4b5-7f0a-4269-a417-f7717270be62",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -144,
+        144
+      ],
+      "id": "c8e186eb-645a-423b-9918-c5294b4d19a9",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "hgHQmlRKc092eZRm",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"language\": \"ru\",\n  \"topic\": \"Настройка интеграции с Comarch Optima\",\n  \"questions\": [\n    \"Как настроить интеграцию с Comarch Optima?\"\n  ],\n  \"needs_escalation\": true\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        144
+      ],
+      "id": "469090a1-1928-492a-95bf-01eeec01ed17",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "chatId": "=-1003811712654",
+        "text": "={{ $json.expert_message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        -144
+      ],
+      "id": "4c90b9c9-c3c5-4d08-9891-3fa8e6a7509b",
+      "name": "Send to experts",
+      "webhookId": "8bb88eb9-c6fc-4d07-9076-35babfbf12ef",
+      "credentials": {
+        "telegramApi": {
+          "id": "NoTjlhmxAWh2FPOb",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.user_message }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "reply_to_message_id": "={{ $('Load Runtime State').item.json.runtime_state.messages.slice(-1)[0].message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        32
+      ],
+      "id": "c43dfd37-6605-479f-94c2-daf98d85b594",
+      "name": "Send to user",
+      "webhookId": "c4340682-a29d-4ac3-a7fd-70d8b5b176a4",
+      "credentials": {
+        "telegramApi": {
+          "id": "NoTjlhmxAWh2FPOb",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE telegram_runtime_state\nSET\n    status = 'escalated',\n    runtime_state = $1::jsonb,\n    updated_at = NOW()\nWHERE\n    id = {{ $('Parse Payload').item.json.runtime_id }};",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json.runtime_state) }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        864,
+        -304
+      ],
+      "id": "889dbf06-b5c1-4667-b28d-4075b2965f57",
+      "name": "Mark Escalated",
+      "credentials": {
+        "postgres": {
+          "id": "waHdZul7xNZt1GpF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2b0d7411-990c-4707-ac73-6993a5482ba6",
+              "leftValue": "={{ $json.runtime_state.analysis.needs_escalation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        352,
+        -48
+      ],
+      "id": "3d118de7-498e-44f0-b3d9-a6e3f27fbbd7",
+      "name": "IF needs escalation"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE telegram_runtime_state\nSET\n    status = 'ignored',\n    updated_at = NOW()\nWHERE\n    id = {{ $('Load Runtime State').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        688,
+        224
+      ],
+      "id": "2b8bf53e-23c6-4b13-af5b-16df37625d7b",
+      "name": "Mark Ignored",
+      "credentials": {
+        "postgres": {
+          "id": "waHdZul7xNZt1GpF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $('Load Runtime State').item.json;\n\nconst ai = $json.output;\n\nconst runtime = state.runtime_state || {};\n\nruntime.analysis = {\n  language: ai.language,\n  topic: ai.topic,\n  questions: ai.questions || [],\n  needs_escalation: ai.needs_escalation,\n  analyzed_at: new Date().toISOString()\n};\n\nreturn [{\n  ...state,\n  runtime_state: runtime,\n\n  language: ai.language,\n  topic: ai.topic,\n  questions: ai.questions || [],\n  needs_escalation: ai.needs_escalation\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -48
+      ],
+      "id": "6906a737-ab34-4b5c-8d1c-298ef6f825c6",
+      "name": "Save Analysis"
+    },
+    {
+      "parameters": {
+        "jsCode": "const lang = $json.language;\nconst topic = $json.topic || 'Вашого звернення';\n\nconst messages = {\nuk: `Дякуємо за звернення.\n\nВаш запит щодо <b>${topic}</b> передано команді підтримки.\nНаші консультанти вивчать деталі та нададуть відповідь прямо тут, у цьому чаті.\n\nЦе автоматичне повідомлення. Наш консультант приєднається до діалогу якомога швидше.`,\n\nru: `Спасибо за обращение.\n\nВаш запрос по теме <b>${topic}</b> передан в службу поддержки.\nНаши консультанты изучат детали и ответят прямо здесь, в этом чате.\n\nЭто автоматическое сообщение. Наш консультант присоединится к разговору как можно скорее.`,\n\npl: `Dziękujemy za kontakt.\n\nTwoje zgłoszenie dotyczące <b>${topic}</b> zostało przekazane zespołowi wsparcia.\nNasi konsultanci zapoznają się ze szczegółami i udzielą odpowiedzi bezpośrednio tutaj, na tym czacie.\n\nTo jest wiadomość automatyczna. Nasz konsultant dołączy do rozmowy tak szybko, jak to możliwe.`,\n\nen: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`,\n\nother: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`\n};\n\nreturn [{\n...$json,\nuser_message: messages[lang] || messages.other\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        32
+      ],
+      "id": "ec530478-1fb0-470f-8cac-d5f0a974105d",
+      "name": "Build User Message"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM telegram_runtime_state\nWHERE id = {{ $('Parse Payload').item.json.runtime_id }}\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        -32
+      ],
+      "id": "a8336b38-c214-4f27-be6c-15a1d2b90c75",
+      "name": "Load Runtime State",
+      "credentials": {
+        "postgres": {
+          "id": "waHdZul7xNZt1GpF",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const runtime = JSON.parse(\n  JSON.stringify($json.runtime_state || {})\n);\n\nruntime.escalation = {\n  sent_to_experts: true,\n  sent_to_user: true,\n  sent_at: new Date().toISOString()\n};\n\nreturn [{\n  ...$json,\n  runtime_state: runtime\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        -304
+      ],
+      "id": "c8c77c2a-e05f-4b47-a407-b454c48626c9",
+      "name": "Build Final Runtime State"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "RabbitMQ Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payload": {
+      "main": [
+        [
+          {
+            "node": "Load Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Escalation Message": {
+      "main": [
+        [
+          {
+            "node": "Send to experts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Status Waiting": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Save Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to experts": {
+      "main": [
+        []
+      ]
+    },
+    "IF needs escalation": {
+      "main": [
+        [
+          {
+            "node": "Build Escalation Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build User Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Final Runtime State",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Analysis": {
+      "main": [
+        [
+          {
+            "node": "IF needs escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Ignored": {
+      "main": [
+        []
+      ]
+    },
+    "Build User Message": {
+      "main": [
+        [
+          {
+            "node": "Send to user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Runtime State": {
+      "main": [
+        [
+          {
+            "node": "IF Status Waiting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Runtime State": {
+      "main": [
+        [
+          {
+            "node": "Mark Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d25cfdce-7521-43af-90f4-c2e3e6aa1a54",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f8634e4e8790807446839796d8d74c248c8c137510e6226f5363cd6c71a21c87"
+  },
+  "nodeGroups": [],
+  "id": "SV5DSK31Ea3OvXdg",
+  "tags": []
+}

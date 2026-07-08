@@ -5,3 +5,4 @@
 ### Added
 
 - Added documentation skeleton.
+- Added workflow repository guidelines.

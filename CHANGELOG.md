@@ -6,3 +6,4 @@
 
 - Added documentation skeleton.
 - Added workflow repository guidelines.
+- Added prompt repository guidelines.

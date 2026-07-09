@@ -12,6 +12,8 @@
 - Documented that no database, workflow, or runtime changes were made.
 - Task 004: Added TG Intake workflow documentation.
 - Documented that no workflow, database, or runtime changes were made.
+- Task 005: Added TG Escalation workflow documentation.
+- Documented that no workflow, database, or runtime changes were made.
 
 ## 2026-07-08
 

@@ -1,0 +1,39 @@
+{
+  "environment": {
+    "name": "production"
+  },
+  "telegram": {
+    "source_groups": {
+      "enabled": false,
+      "groups": []
+    },
+    "expert_group": {
+      "chat_id": -1003811712654,
+      "title": "Telegram Support Experts"
+    },
+    "parse_mode": "HTML"
+  },
+  "rabbitmq": {
+    "exchanges": {
+      "support": "tg.support",
+      "dead_letter": "tg.dlx"
+    },
+    "queues": {
+      "delay": "tg.delay",
+      "escalation": "tg.escalation"
+    },
+    "routing_keys": {
+      "delay": "delay",
+      "escalation": "tg.escalation"
+    },
+    "delay_ttl_ms": 60000
+  },
+  "openai": {
+    "default_model": "gpt-5-mini"
+  },
+  "languages": {
+    "supported": ["ru", "uk", "pl", "en", "other"],
+    "default_fallback": "other"
+  }
+}
+

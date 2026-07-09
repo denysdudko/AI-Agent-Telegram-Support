@@ -22,6 +22,8 @@
 - Documented that no workflow, database, or runtime changes were made.
 - Task 009: Added MVP test checklist.
 - Documented that no workflow, database, or runtime changes were made.
+- Task 010: Added production configuration contract and JSON example config.
+- Documented that no workflow, database, runtime, or service changes were made.
 
 ## 2026-07-08
 

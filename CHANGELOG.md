@@ -16,6 +16,8 @@
 - Documented that no workflow, database, or runtime changes were made.
 - Task 006: Added end-to-end workflow documentation.
 - Documented that no workflow, database, or runtime changes were made.
+- Task 007: Added data contracts and JSON schema documentation.
+- Documented that no workflow, database, or runtime changes were made.
 
 ## 2026-07-08
 

@@ -8,6 +8,8 @@
 - Documented that no runtime, workflow, or database changes were made.
 - Task 002: Added infrastructure documentation.
 - Documented that no workflow, database, or runtime changes were made.
+- Task 003: Added database schema documentation.
+- Documented that no database, workflow, or runtime changes were made.
 
 ## 2026-07-08
 

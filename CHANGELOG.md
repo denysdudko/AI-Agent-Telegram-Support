@@ -20,6 +20,8 @@
 - Documented that no workflow, database, or runtime changes were made.
 - Task 008: Added Production Readiness Checklist.
 - Documented that no workflow, database, or runtime changes were made.
+- Task 009: Added MVP test checklist.
+- Documented that no workflow, database, or runtime changes were made.
 
 ## 2026-07-08
 

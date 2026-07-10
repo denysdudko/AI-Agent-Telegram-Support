@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Task 014: Added an expandable expert-message conversation block with Telegram HTML escaping.
 - Task 013: Removed the runtime variable configuration dependency and restored embedded MVP configuration for current n8n Cloud plan compatibility.
 - Task 012: Updated n8n workflow exports to use a shared runtime configuration source.
 - Removed duplicated embedded workflow config objects while preserving MVP business behavior and data contracts.

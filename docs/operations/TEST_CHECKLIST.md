@@ -21,6 +21,7 @@ Do not mark these checks as automated. Execute them manually in a controlled Tel
 - [ ] Confirm the latest RabbitMQ event with the current `queue_version` can proceed when status is still `waiting`.
 - [ ] Confirm expert Telegram notification text uses Ukrainian.
 - [ ] Confirm expert Telegram notification includes group, user, Telegram ID, topic, questions, link, and message count.
+- [ ] Confirm expert Telegram notification includes a collapsed expandable blockquote with the complete original user conversation.
 - [ ] Confirm user Telegram notification uses the detected language template.
 - [ ] Confirm user Telegram notification replies to the latest user message.
 
@@ -63,6 +64,7 @@ Verify the main happy path: a user support request waits for the delay, is analy
 
 - [ ] Expert message is in Ukrainian.
 - [ ] Expert message includes group, user, Telegram ID, topic, questions, link, and message count.
+- [ ] Expert message includes an expandable blockquote with the original user message.
 - [ ] User message uses the detected language template.
 - [ ] User message replies to the latest user message.
 
@@ -102,6 +104,7 @@ Verify message aggregation, `queue_version` incrementing, stale RabbitMQ event h
 - [ ] No expert or user notification is sent by the old stale event.
 - [ ] Expert message uses Ukrainian.
 - [ ] Expert message shows the correct message count.
+- [ ] Expert message expandable blockquote lists all original user messages in chronological order.
 - [ ] User notification replies to the latest user message.
 
 ## 3. Expert Reply Before Timer Expires
@@ -280,9 +283,19 @@ Verify the expert-facing notification has the required Ukrainian format and incl
 - [ ] Expert message includes Telegram ID.
 - [ ] Expert message includes topic.
 - [ ] Expert message includes questions.
+- [ ] Expert message includes a collapsed expandable blockquote after questions and before the message link.
+- [ ] Expandable blockquote heading is `Повний текст звернення:`.
+- [ ] Expandable blockquote contains one original user message when the request has one message.
+- [ ] Expandable blockquote contains several original user messages when the request has several messages.
+- [ ] Long conversations remain collapsed by default and can be expanded.
 - [ ] Expert message includes a link to the Telegram message.
 - [ ] Expert message includes message count.
 - [ ] Expert message is in Ukrainian.
+- [ ] Text containing `<`, `>`, `&`, double quotes, and apostrophes is escaped and does not break Telegram HTML parsing.
+- [ ] Expert notification sends without a Telegram parse error.
+- [ ] Expand and collapse the blockquote in Telegram Desktop.
+- [ ] Expand and collapse the blockquote in Telegram mobile.
+- [ ] Original-message link still opens the correct Telegram message.
 
 ## 8. Runtime Status Transitions
 
@@ -356,4 +369,3 @@ Verify known MVP edge cases are understood and manually checked without introduc
 - [ ] Support request without a question mark produces normal expert and user notifications when escalated.
 - [ ] Unsupported-language request uses the fallback user template when escalated.
 - [ ] Telegram send failure is documented in test notes as a known MVP risk.
-

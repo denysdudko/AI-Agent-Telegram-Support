@@ -17,6 +17,18 @@ Config-driven values:
 - `telegram.parse_mode`
 - `languages.default_fallback`
 
+## Expert Message
+
+The expert alert preserves the visible Ukrainian structure with runtime ID, group, user, Telegram ID, topic, questions, original-message link, and message count.
+
+After extracted questions and before the original-message link, it includes a Telegram HTML expandable blockquote:
+
+```html
+<blockquote expandable>...</blockquote>
+```
+
+The quote is collapsed by default in Telegram clients that support expandable blockquotes. It contains `Повний текст звернення:` and every stored message from `runtime_state.messages[]` in chronological array order. Dynamic Telegram HTML content is escaped locally in `Build Escalation Message`.
+
 ## RabbitMQ Trigger Exception
 
 `RabbitMQ Trigger` cannot read config from a previous node because it starts the workflow. For MVP compatibility, its queue is set directly to `tg.escalation`.
@@ -39,4 +51,3 @@ RabbitMQ payload remains unchanged:
 - Retry strategy is deferred.
 - Partial failure protection is deferred.
 - Structured logging, monitoring, and alerts are deferred.
-

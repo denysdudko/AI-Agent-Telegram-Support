@@ -142,8 +142,19 @@ The expert notification is built in Ukrainian and uses Telegram HTML parse mode.
 - Telegram user ID;
 - topic;
 - questions;
+- collapsed expandable blockquote with the complete original user conversation;
 - message link;
 - message count.
+
+The expandable blockquote is rendered with Telegram Bot API HTML:
+
+```html
+<blockquote expandable>...</blockquote>
+```
+
+It appears after extracted questions and before the original-message link. It is collapsed by default in Telegram clients that support expandable blockquotes. Inside the quote, the workflow includes the Ukrainian heading `Повний текст звернення:` and every stored item from `runtime_state.messages[]` in chronological array order. If no stored messages are available, the quote contains `Повідомлення відсутні.`.
+
+`Build Escalation Message` escapes dynamic Telegram HTML content before insertion, including group title, user name, AI topic, AI questions, and original user messages. Escaped characters are `&`, `<`, `>`, `"`, and `'`. Template-owned HTML tags such as `<b>`, `<a>`, and `<blockquote expandable>` are intentionally not escaped.
 
 The message is sent to the expert group chat.
 

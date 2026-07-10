@@ -185,7 +185,7 @@ Example:
   "questions": ["How can I check my order status?"],
   "message_link": "https://t.me/c/1234567890/12345",
   "message_count": 2,
-  "expert_message": "<b>Group:</b>\nSupport Group"
+  "expert_message": "<b>Group:</b>\nSupport Group\n\n<blockquote expandable><b>Повний текст звернення:</b>\n\n1. I need help with my order.</blockquote>"
 }
 ```
 

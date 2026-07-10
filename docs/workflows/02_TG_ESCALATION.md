@@ -6,13 +6,9 @@
 
 ## Configuration
 
-`RabbitMQ Trigger` reads the escalation queue directly from:
+`Load Production Config` contains the MVP configuration object, validates required fields and types, and keeps the config at `$json.config` before runtime loading and AI processing.
 
-```javascript
-JSON.parse($vars.TG_SUPPORT_CONFIG_JSON).rabbitmq.queues.escalation
-```
-
-`Load Production Config` then reads the same n8n Variable `TG_SUPPORT_CONFIG_JSON`, parses it with `JSON.parse`, validates required fields and types, and keeps the parsed object at `$json.config` before runtime loading and AI processing.
+This embedded workflow configuration is accepted for the MVP because the current n8n Cloud plan does not provide Custom Variables.
 
 Config-driven values:
 
@@ -20,9 +16,12 @@ Config-driven values:
 - `telegram.expert_group.chat_id`
 - `telegram.parse_mode`
 - `languages.default_fallback`
-- `rabbitmq.queues.escalation`
 
-The workflow export does not contain duplicated embedded runtime config values. Changing `TG_SUPPORT_CONFIG_JSON` updates both workflows. If n8n does not apply a RabbitMQ trigger queue change automatically, reactivate `TG Escalation`.
+## RabbitMQ Trigger Exception
+
+`RabbitMQ Trigger` cannot read config from a previous node because it starts the workflow. For MVP compatibility, its queue is set directly to `tg.escalation`.
+
+This is the only accepted operational literal in the workflow export for Task 013.
 
 ## Payload Contract
 

@@ -6,7 +6,7 @@
 
 The workflow:
 
-- consumes delayed RabbitMQ events from the queue configured in `TG_SUPPORT_CONFIG_JSON`;
+- consumes delayed RabbitMQ events from `tg.escalation`;
 - loads the latest `telegram_runtime_state` row;
 - continues only for current waiting queues;
 - runs AI analysis with structured output;
@@ -36,9 +36,11 @@ The workflow:
 
 ## Configuration Loading
 
-`RabbitMQ Trigger` reads `rabbitmq.queues.escalation` directly from `TG_SUPPORT_CONFIG_JSON` with `JSON.parse($vars.TG_SUPPORT_CONFIG_JSON).rabbitmq.queues.escalation`. Because trigger subscription happens before Code nodes can run, `Load Production Config` runs immediately after `Parse Payload`.
+`RabbitMQ Trigger` cannot read config from a previous node because it starts the workflow. For MVP compatibility, its queue is set directly to `tg.escalation`.
 
-`Load Production Config` reads `TG_SUPPORT_CONFIG_JSON` from n8n Variables, parses it with `JSON.parse`, and validates required config paths and types before runtime loading, stale-event checks, AI analysis, message building, and Telegram sends.
+`Load Production Config` contains the MVP configuration object and validates required config paths and types before runtime loading, stale-event checks, AI analysis, message building, and Telegram sends.
+
+This embedded workflow configuration is accepted for the MVP because the current n8n Cloud plan does not provide Custom Variables.
 
 Config-driven values:
 
@@ -49,8 +51,6 @@ Config-driven values:
 - `rabbitmq.queues.escalation`
 
 The RabbitMQ payload remains unchanged and still contains only `runtime_id` and `queue_version`.
-
-Changing `TG_SUPPORT_CONFIG_JSON` updates both workflows. If n8n does not apply a RabbitMQ trigger queue change automatically, reactivate `TG Escalation` so the trigger subscription is recreated.
 
 ## RabbitMQ Input Payload
 
@@ -163,4 +163,4 @@ The notification:
 - `Mark Escalated` currently can run in parallel with `Send to experts` and `Send to user` because all three branches start from `IF needs escalation`.
 - This may mark runtime as `escalated` even if one Telegram send fails.
 - This is acceptable for MVP documentation, but should be refined later.
-- Operational values, including the expert group chat ID, are now loaded from `TG_SUPPORT_CONFIG_JSON`.
+- Operational values, including the expert group chat ID, are now loaded from `$json.config`.

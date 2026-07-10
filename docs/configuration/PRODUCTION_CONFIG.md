@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the single production configuration contract for the Telegram Support Agent MVP. The contract centralizes operational values in one n8n runtime variable instead of duplicating them across workflow exports.
+This document defines the production configuration contract for the Telegram Support Agent MVP. The contract centralizes the shape of operational values and is embedded in workflow exports for compatibility with the current n8n Cloud plan.
 
 The contract centralizes configuration without changing database schema, runtime state shape, AI node count, services, or infrastructure.
 
@@ -12,29 +12,27 @@ The contract centralizes configuration without changing database schema, runtime
 - The example config must not contain secrets, tokens, passwords, connection URLs, or credential names.
 - Workflows must continue to use one orchestration layer, one retrieval layer, one answer layer, a single `runtime_state`, and JSON schema everywhere.
 - The config must not introduce Redis, a new service, or a second runtime state store.
-- n8n workflow exports read operational values from `TG_SUPPORT_CONFIG_JSON` instead of relying on scattered hardcoded workflow literals.
-- Workflow exports must not contain duplicated embedded runtime config objects.
+- n8n workflow exports read operational values from the `Load Production Config` Code node.
+- Embedded workflow configuration is the accepted MVP implementation because Custom Variables are unavailable on the current n8n Cloud plan.
 - Secrets remain in n8n credentials or environment-specific secret management, not in this config.
 
-## Runtime Source of Truth
+## n8n Plan Compatibility
 
-The runtime source of truth is one n8n Variable:
+The current n8n Cloud plan does not provide Custom Variables. Custom Variables require Pro Cloud or Self-hosted Enterprise.
+
+Because of that limitation, workflow exports must not depend on n8n Custom Variables for runtime configuration in the MVP.
+
+## MVP Runtime Source
+
+The MVP runtime source is the embedded config object inside each workflow's `Load Production Config` Code node.
+
+The embedded object must match the shape in:
 
 ```text
-TG_SUPPORT_CONFIG_JSON
+config/telegram-support-agent.config.example.json
 ```
 
-The variable value must be valid JSON and must follow the shape in `config/telegram-support-agent.config.example.json`.
-
-To create it in n8n:
-
-1. Open n8n Variables.
-2. Create `TG_SUPPORT_CONFIG_JSON`.
-3. Copy the JSON from `config/telegram-support-agent.config.example.json`.
-4. Adjust non-secret operational values for the target environment.
-5. Save the variable.
-
-Changing `TG_SUPPORT_CONFIG_JSON` updates both `TG Intake` and `TG Escalation`. If a trigger configuration change, such as `rabbitmq.queues.escalation`, is not applied automatically, reactivate the affected workflow.
+`Load Production Config` validates the embedded object and returns it at `$json.config`.
 
 ## Example Config File
 
@@ -44,7 +42,7 @@ Example path:
 config/telegram-support-agent.config.example.json
 ```
 
-Production deployments should use this file as the source value for `TG_SUPPORT_CONFIG_JSON`. The repository example documents defaults and non-secret operational values only.
+Production deployments should use this file as the reference value for the embedded workflow config object. The repository example documents defaults and non-secret operational values only.
 
 ## Runtime Configuration Shape
 
@@ -365,7 +363,7 @@ The configuration should be validated with this schema before a workflow uses it
 
 ## Config-Driven Workflow Values
 
-The n8n workflow exports read these operational values from `TG_SUPPORT_CONFIG_JSON`:
+The n8n workflow exports read these operational values from `$json.config` after `Load Production Config`:
 
 - `TG Intake` RabbitMQ publish exchange: `tg.support`.
 - `TG Intake` RabbitMQ publish routing key: `delay`.
@@ -375,7 +373,9 @@ The n8n workflow exports read these operational values from `TG_SUPPORT_CONFIG_J
 - `TG Escalation` Telegram parse mode: `HTML`.
 - RabbitMQ topology defaults: `tg.support`, `tg.dlx`, `tg.delay`, `tg.escalation`, `delay`, and `60000`.
 
-Task 012 removed duplicated embedded config objects from workflow exports. `TG_SUPPORT_CONFIG_JSON` is now the shared runtime configuration source for both workflows.
+Task 013 restored embedded MVP configuration because the current n8n Cloud plan does not support Custom Variables.
+
+`TG Escalation` has one MVP exception: `RabbitMQ Trigger` cannot read config from a previous node, so its queue is set directly to `tg.escalation`.
 
 ## Accepted MVP Deferrals
 
@@ -395,4 +395,4 @@ The following items are deferred to the next version and are not part of Task 01
 - No new AI nodes are added.
 - No Redis or new service is introduced.
 - No secrets are stored in the example config.
-- No secrets are stored in `TG_SUPPORT_CONFIG_JSON`.
+- No environment-specific secrets are stored in workflow JSON.

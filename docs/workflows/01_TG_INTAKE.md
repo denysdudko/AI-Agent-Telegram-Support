@@ -6,14 +6,14 @@
 
 ## Configuration
 
-`Load Production Config` reads the n8n Variable `TG_SUPPORT_CONFIG_JSON`, parses it with `JSON.parse`, validates required fields and types, and keeps the parsed object at `$json.config`.
+`Load Production Config` contains the MVP configuration object, validates required fields and types, and keeps the config at `$json.config`.
+
+This embedded workflow configuration is accepted for the MVP because the current n8n Cloud plan does not provide Custom Variables.
 
 `Publish` reads:
 
 - `rabbitmq.exchanges.support`
 - `rabbitmq.routing_keys.delay`
-
-The workflow export does not contain duplicated embedded runtime config values. Changing `TG_SUPPORT_CONFIG_JSON` updates this workflow without changing the export.
 
 ## Payload Contract
 

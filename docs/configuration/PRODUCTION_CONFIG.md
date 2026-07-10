@@ -4,7 +4,7 @@
 
 This document defines the single production configuration contract for the Telegram Support Agent MVP. The contract centralizes operational values that are currently spread across n8n workflow JSON exports and infrastructure setup.
 
-This task is documentation and configuration-contract only. It does not change n8n workflow behavior, database schema, runtime state shape, AI nodes, services, or infrastructure.
+The contract centralizes configuration without changing database schema, runtime state shape, AI node count, services, or infrastructure.
 
 ## Contract Rules
 
@@ -12,7 +12,7 @@ This task is documentation and configuration-contract only. It does not change n
 - The example config must not contain secrets, tokens, passwords, connection URLs, or credential names.
 - Workflows must continue to use one orchestration layer, one retrieval layer, one answer layer, a single `runtime_state`, and JSON schema everywhere.
 - The config must not introduce Redis, a new service, or a second runtime state store.
-- n8n workflows should read values from this contract in the next implementation step instead of relying on hardcoded operational values.
+- n8n workflow exports read operational values from this contract instead of relying on scattered hardcoded workflow literals.
 - Secrets remain in n8n credentials or environment-specific secret management, not in this config.
 
 ## Config File
@@ -342,9 +342,9 @@ The configuration should be validated with this schema before a workflow uses it
 }
 ```
 
-## Hardcoded Values to Replace Next
+## Config-Driven Workflow Values
 
-The next implementation step should replace these current workflow literals with config reads:
+The n8n workflow exports should read these operational values from the production config contract:
 
 - `TG Intake` RabbitMQ publish exchange: `tg.support`.
 - `TG Intake` RabbitMQ publish routing key: `delay`.
@@ -354,12 +354,13 @@ The next implementation step should replace these current workflow literals with
 - `TG Escalation` Telegram parse mode: `HTML`.
 - RabbitMQ topology defaults: `tg.support`, `tg.dlx`, `tg.delay`, `tg.escalation`, `delay`, and `60000`.
 
+Task 011 implemented config loading in the workflow exports while keeping the same defaults and business behavior.
+
 ## Non-Goals
 
-- No workflow JSON files are changed in this task.
+- Workflow exports may read from this contract, but the contract must not change business behavior by itself.
 - No database schema changes are introduced.
 - No implementation code is added.
 - No new AI nodes are added.
 - No Redis or new service is introduced.
 - No secrets are stored in the example config.
-

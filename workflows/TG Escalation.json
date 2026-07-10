@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "queue": "tg.escalation",
+        "queue": "={{ ({\"rabbitmq\":{\"queues\":{\"escalation\":\"tg.escalation\"}}}).rabbitmq.queues.escalation }}",
         "options": {}
       },
       "type": "n8n-nodes-base.rabbitmqTrigger",
@@ -33,6 +33,19 @@
       ],
       "id": "97798509-ba9e-4432-82ea-c12edf90d960",
       "name": "Parse Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = {\"environment\":{\"name\":\"production\"},\"telegram\":{\"source_groups\":{\"enabled\":false,\"groups\":[]},\"expert_group\":{\"chat_id\":-1003811712654,\"title\":\"Telegram Support Experts\"},\"parse_mode\":\"HTML\"},\"rabbitmq\":{\"exchanges\":{\"support\":\"tg.support\",\"dead_letter\":\"tg.dlx\"},\"queues\":{\"delay\":\"tg.delay\",\"escalation\":\"tg.escalation\"},\"routing_keys\":{\"delay\":\"delay\",\"escalation\":\"tg.escalation\"},\"delay_ttl_ms\":60000},\"openai\":{\"default_model\":\"gpt-5-mini\"},\"languages\":{\"supported\":[\"ru\",\"uk\",\"pl\",\"en\",\"other\"],\"default_fallback\":\"other\"}};\n\nconst missing = [];\nconst requirePath = (path) => {\n  const value = path.split('.').reduce((current, key) => current?.[key], config);\n  if (value === undefined || value === null || value === '') missing.push(path);\n};\n\n[\n  'environment',\n  'telegram',\n  'rabbitmq',\n  'openai',\n  'languages',\n  'rabbitmq.exchanges.support',\n  'rabbitmq.exchanges.dead_letter',\n  'rabbitmq.queues.delay',\n  'rabbitmq.queues.escalation',\n  'rabbitmq.routing_keys.delay',\n  'rabbitmq.routing_keys.escalation',\n  'rabbitmq.delay_ttl_ms',\n  'telegram.expert_group.chat_id',\n  'telegram.parse_mode',\n  'openai.default_model',\n  'languages.default_fallback'\n].forEach(requirePath);\n\nif (missing.length) {\n  throw new Error(`Production config validation failed: missing ${missing.join(', ')}`);\n}\n\nreturn [{\n  ...$json,\n  config\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -664,
+        -32
+      ],
+      "id": "b4a61d8a-c9f4-4e53-9498-176f73e984f8",
+      "name": "Load Production Config"
     },
     {
       "parameters": {
@@ -118,7 +131,7 @@
         "model": {
           "__rl": true,
           "mode": "list",
-          "value": "gpt-5-mini"
+          "value": "={{ $('Load Production Config').item.json.config.openai.default_model }}"
         },
         "builtInTools": {},
         "options": {}
@@ -153,11 +166,11 @@
     },
     {
       "parameters": {
-        "chatId": "=-1003811712654",
+        "chatId": "={{ $('Load Production Config').item.json.config.telegram.expert_group.chat_id }}",
         "text": "={{ $json.expert_message }}",
         "additionalFields": {
           "appendAttribution": false,
-          "parse_mode": "HTML"
+          "parse_mode": "={{ $('Load Production Config').item.json.config.telegram.parse_mode }}"
         }
       },
       "type": "n8n-nodes-base.telegram",
@@ -182,7 +195,7 @@
         "text": "={{ $json.user_message }}",
         "additionalFields": {
           "appendAttribution": false,
-          "parse_mode": "HTML",
+          "parse_mode": "={{ $('Load Production Config').item.json.config.telegram.parse_mode }}",
           "reply_to_message_id": "={{ $('Load Runtime State').item.json.runtime_state.messages.slice(-1)[0].message_id }}"
         }
       },
@@ -296,7 +309,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const lang = $json.language;\nconst topic = $json.topic || 'Вашого звернення';\n\nconst messages = {\nuk: `Дякуємо за звернення.\n\nВаш запит щодо <b>${topic}</b> передано команді підтримки.\nНаші консультанти вивчать деталі та нададуть відповідь прямо тут, у цьому чаті.\n\nЦе автоматичне повідомлення. Наш консультант приєднається до діалогу якомога швидше.`,\n\nru: `Спасибо за обращение.\n\nВаш запрос по теме <b>${topic}</b> передан в службу поддержки.\nНаши консультанты изучат детали и ответят прямо здесь, в этом чате.\n\nЭто автоматическое сообщение. Наш консультант присоединится к разговору как можно скорее.`,\n\npl: `Dziękujemy za kontakt.\n\nTwoje zgłoszenie dotyczące <b>${topic}</b> zostało przekazane zespołowi wsparcia.\nNasi konsultanci zapoznają się ze szczegółami i udzielą odpowiedzi bezpośrednio tutaj, na tym czacie.\n\nTo jest wiadomość automatyczna. Nasz konsultant dołączy do rozmowy tak szybko, jak to możliwe.`,\n\nen: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`,\n\nother: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`\n};\n\nreturn [{\n...$json,\nuser_message: messages[lang] || messages.other\n}];\n"
+        "jsCode": "const lang = $json.language;\nconst fallbackLang = $('Load Production Config').item.json.config.languages.default_fallback;\nconst topic = $json.topic || 'Вашого звернення';\n\nconst messages = {\nuk: `Дякуємо за звернення.\n\nВаш запит щодо <b>${topic}</b> передано команді підтримки.\nНаші консультанти вивчать деталі та нададуть відповідь прямо тут, у цьому чаті.\n\nЦе автоматичне повідомлення. Наш консультант приєднається до діалогу якомога швидше.`,\n\nru: `Спасибо за обращение.\n\nВаш запрос по теме <b>${topic}</b> передан в службу поддержки.\nНаши консультанты изучат детали и ответят прямо здесь, в этом чате.\n\nЭто автоматическое сообщение. Наш консультант присоединится к разговору как можно скорее.`,\n\npl: `Dziękujemy za kontakt.\n\nTwoje zgłoszenie dotyczące <b>${topic}</b> zostało przekazane zespołowi wsparcia.\nNasi konsultanci zapoznają się ze szczegółami i udzielą odpowiedzi bezpośrednio tutaj, na tym czacie.\n\nTo jest wiadomość automatyczna. Nasz konsultant dołączy do rozmowy tak szybko, jak to możliwe.`,\n\nen: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`,\n\nother: `Thank you for contacting us.\n\nYour inquiry regarding <b>${topic}</b> has been forwarded to our support team.\nOur representatives will review the details and respond right here in this chat.\n\nThis is an automated message. One of our specialists will join the conversation as soon as possible.`\n};\n\nreturn [{\n...$json,\nuser_message: messages[lang] || messages[fallbackLang] || messages.other\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -359,7 +372,7 @@
       "main": [
         [
           {
-            "node": "Load Runtime State",
+            "node": "Load Production Config",
             "type": "main",
             "index": 0
           }
@@ -497,6 +510,17 @@
         [
           {
             "node": "Mark Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Production Config": {
+      "main": [
+        [
+          {
+            "node": "Load Runtime State",
             "type": "main",
             "index": 0
           }

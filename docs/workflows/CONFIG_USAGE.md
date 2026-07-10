@@ -2,9 +2,26 @@
 
 ## Purpose
 
-This document explains how `TG Intake` and `TG Escalation` must use the production configuration contract in the next implementation step. It documents the required direction only; current n8n workflow JSON files are not changed by this task.
+This document explains how `TG Intake` and `TG Escalation` use the production configuration contract in the n8n workflow exports.
 
 The configuration contract is defined in `docs/configuration/PRODUCTION_CONFIG.md`, with a JSON-only example at `config/telegram-support-agent.config.example.json`.
+
+## Implemented Approach
+
+Both workflow exports include a `Load Production Config` Code node. The node loads the JSON contract defaults from `config/telegram-support-agent.config.example.json`, validates required paths, and exposes the config as `config` for downstream nodes.
+
+Validation checks:
+
+- required top-level keys: `environment`, `telegram`, `rabbitmq`, `openai`, and `languages`;
+- required RabbitMQ keys for exchanges, queues, routing keys, and delay TTL;
+- required expert Telegram group chat id;
+- required Telegram parse mode;
+- required OpenAI default model;
+- required fallback language.
+
+If validation fails, the Code node throws a clear `Production config validation failed` error and stops the workflow before downstream operational steps run.
+
+`TG Escalation` has one trigger-specific exception: the RabbitMQ Trigger queue is evaluated before any Code node can run. Its queue field is still expression-based and uses the same config contract default for `rabbitmq.queues.escalation`; the validation node runs immediately after payload parsing and before runtime loading, AI analysis, or Telegram sends.
 
 ## Shared Rules
 
@@ -12,12 +29,12 @@ The configuration contract is defined in `docs/configuration/PRODUCTION_CONFIG.m
 - Secrets must stay in n8n credentials or environment-specific secret management.
 - Config reads must not change the documented architecture: one orchestration layer, one retrieval layer, one answer layer, one `runtime_state`, and JSON schema everywhere.
 - Config reads must not introduce Redis, a new service, or a second runtime store.
-- Config validation should happen before operational values are used.
+- Config validation happens in the `Load Production Config` Code node.
 - Workflow behavior should remain equivalent to the current defaults unless an explicit future task changes behavior.
 
 ## TG Intake Usage
 
-`TG Intake` must read config before it publishes RabbitMQ delay events.
+`TG Intake` reads config immediately after `Normalize Message` and before expert lookup, runtime lookup, runtime creation/update, and RabbitMQ publishing.
 
 Required config values:
 
@@ -38,16 +55,15 @@ Usage requirements:
 - Publish delayed support events through the configured support exchange and delay routing key.
 - Keep the 60-second MVP behavior by using the configured default `rabbitmq.delay_ttl_ms = 60000` until a future task changes the value.
 
-Current hardcoded values to replace in `TG Intake`:
+Implemented replacements in `TG Intake`:
 
-- RabbitMQ publish exchange `tg.support` should read from `rabbitmq.exchanges.support`.
-- RabbitMQ publish routing key `delay` should read from `rabbitmq.routing_keys.delay`.
-- RabbitMQ delay queue/topology value `tg.delay` should be managed from `rabbitmq.queues.delay` and RabbitMQ infrastructure config.
-- RabbitMQ delay TTL `60000` should read from `rabbitmq.delay_ttl_ms`.
+- RabbitMQ publish exchange now reads from `rabbitmq.exchanges.support`.
+- RabbitMQ publish routing key now reads from `rabbitmq.routing_keys.delay`.
+- RabbitMQ payload remains unchanged: `runtime_id` and `queue_version`.
 
 ## TG Escalation Usage
 
-`TG Escalation` must read config before it consumes delayed events, runs AI analysis, builds Telegram messages, or sends notifications.
+`TG Escalation` reads config after `Parse Payload` and before `Load Runtime State`, stale-event checks, AI analysis, message building, or Telegram sends.
 
 Required config values:
 
@@ -73,14 +89,14 @@ Usage requirements:
 - Send expert notifications to `telegram.expert_group.chat_id`.
 - Use `telegram.parse_mode` for expert and user Telegram messages.
 
-Current hardcoded values to replace in `TG Escalation`:
+Implemented replacements in `TG Escalation`:
 
-- RabbitMQ trigger queue `tg.escalation` should read from `rabbitmq.queues.escalation`.
-- OpenAI model `gpt-5-mini` should read from `openai.default_model`.
-- Expert Telegram chat id `-1003811712654` should read from `telegram.expert_group.chat_id`.
-- Telegram parse mode `HTML` should read from `telegram.parse_mode`.
-- Supported user notification language keys `uk`, `ru`, `pl`, `en`, and `other` should align with `languages.supported`.
-- Fallback language `other` should read from `languages.default_fallback`.
+- RabbitMQ trigger queue uses an expression based on the config contract default for `rabbitmq.queues.escalation`.
+- OpenAI model now reads from `openai.default_model`.
+- Expert Telegram chat id now reads from `telegram.expert_group.chat_id`.
+- Expert and user Telegram parse mode now reads from `telegram.parse_mode`.
+- User notification fallback language now reads from `languages.default_fallback`.
+- RabbitMQ payload remains unchanged: `runtime_id` and `queue_version`.
 
 ## RabbitMQ Topology Usage
 
@@ -94,13 +110,11 @@ RabbitMQ topology must come from the same config contract:
 - Escalation routing key: `rabbitmq.routing_keys.escalation`, default `tg.escalation`.
 - Delay TTL: `rabbitmq.delay_ttl_ms`, default `60000`.
 
-## Implementation Notes for Next Task
+## Remaining Notes
 
-- Add config loading in n8n using existing workflow capabilities or environment-specific JSON injection.
-- Validate the JSON shape before using values in operational nodes.
-- Replace literals one node at a time and keep payload contracts unchanged.
+- The current implementation embeds the JSON example contract defaults in each workflow export through the `Load Production Config` node.
+- A later deployment task may replace the embedded defaults with environment-specific JSON injection while keeping the same contract shape.
 - Do not add new AI nodes.
 - Do not change database schema.
 - Do not change `runtime_state` shape unless a future explicit task requires it.
 - Do not store secrets in the JSON config.
-

@@ -18,20 +18,37 @@ The workflow:
 
 1. `RabbitMQ Trigger`
 2. `Parse Payload`
-3. `Load Runtime State`
-4. `IF Status Waiting`
-5. `Basic LLM Chain`
-6. `OpenAI Chat Model`
-7. `Structured Output Parser`
-8. `Save Analysis`
-9. `IF needs escalation`
-10. `Build Escalation Message`
-11. `Build User Message`
-12. `Build Final Runtime State`
-13. `Send to experts`
-14. `Send to user`
-15. `Mark Escalated`
-16. `Mark Ignored`
+3. `Load Production Config`
+4. `Load Runtime State`
+5. `IF Status Waiting`
+6. `Basic LLM Chain`
+7. `OpenAI Chat Model`
+8. `Structured Output Parser`
+9. `Save Analysis`
+10. `IF needs escalation`
+11. `Build Escalation Message`
+12. `Build User Message`
+13. `Build Final Runtime State`
+14. `Send to experts`
+15. `Send to user`
+16. `Mark Escalated`
+17. `Mark Ignored`
+
+## Configuration Loading
+
+`RabbitMQ Trigger` uses an expression based on the production config contract default for `rabbitmq.queues.escalation`. Because trigger subscription happens before Code nodes can run, `Load Production Config` runs immediately after `Parse Payload`.
+
+`Load Production Config` validates required config paths before runtime loading, stale-event checks, AI analysis, message building, and Telegram sends.
+
+Config-driven values:
+
+- `openai.default_model`
+- `telegram.expert_group.chat_id`
+- `telegram.parse_mode`
+- `languages.default_fallback`
+- `rabbitmq.queues.escalation`
+
+The RabbitMQ payload remains unchanged and still contains only `runtime_id` and `queue_version`.
 
 ## RabbitMQ Input Payload
 
@@ -144,4 +161,4 @@ The notification:
 - `Mark Escalated` currently can run in parallel with `Send to experts` and `Send to user` because all three branches start from `IF needs escalation`.
 - This may mark runtime as `escalated` even if one Telegram send fails.
 - This is acceptable for MVP documentation, but should be refined later.
-- The expert group chat ID is currently hardcoded and should become configurable later.
+- Operational values, including the expert group chat ID, are now loaded from the production config contract in the workflow export.

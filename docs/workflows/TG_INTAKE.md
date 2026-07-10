@@ -17,17 +17,29 @@ The workflow:
 
 1. `Telegram Trigger`
 2. `Normalize Message`
-3. `Get a expert`
-4. `IF Expert`
-5. `answered_by_expert`
-6. `Execute a SQL query`
-7. `IF Runtime Exists`
-8. `Build New Runtime State`
-9. `Build Updated Runtime State`
-10. `Create Runtime State`
-11. `Update Runtime State`
-12. `Build RabbitMQ Payload`
-13. `Publish`
+3. `Load Production Config`
+4. `Get a expert`
+5. `IF Expert`
+6. `answered_by_expert`
+7. `Execute a SQL query`
+8. `IF Runtime Exists`
+9. `Build New Runtime State`
+10. `Build Updated Runtime State`
+11. `Create Runtime State`
+12. `Update Runtime State`
+13. `Build RabbitMQ Payload`
+14. `Publish`
+
+## Configuration Loading
+
+`Load Production Config` loads the production configuration contract defaults and validates required config paths before expert lookup, runtime lookup, and RabbitMQ publishing.
+
+`Publish` reads RabbitMQ operational values from config:
+
+- `rabbitmq.exchanges.support`
+- `rabbitmq.routing_keys.delay`
+
+The RabbitMQ payload remains unchanged and still contains only `runtime_id` and `queue_version`.
 
 ## Normalized Message Contract
 
@@ -100,9 +112,10 @@ If no active waiting runtime exists:
 - `TG Intake` does not decide `needs_escalation`.
 - `TG Intake` only collects messages and manages queue/timer state.
 - AI analysis is handled by `TG Escalation`.
+- Operational values must be read from the production config contract instead of hardcoded workflow literals.
 
 ## Known Risks / Notes
 
 - Current expert reply logic closes all waiting queues in the chat.
 - This is acceptable for the MVP but may need refinement later if multiple users wait at the same time.
-- Chat IDs and routing keys should be configurable long-term.
+- Source group filtering is documented in the config contract but is not enabled by default.

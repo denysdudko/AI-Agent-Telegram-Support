@@ -39,6 +39,19 @@
     },
     {
       "parameters": {
+        "jsCode": "const config = {\"environment\":{\"name\":\"production\"},\"telegram\":{\"source_groups\":{\"enabled\":false,\"groups\":[]},\"expert_group\":{\"chat_id\":-1003811712654,\"title\":\"Telegram Support Experts\"},\"parse_mode\":\"HTML\"},\"rabbitmq\":{\"exchanges\":{\"support\":\"tg.support\",\"dead_letter\":\"tg.dlx\"},\"queues\":{\"delay\":\"tg.delay\",\"escalation\":\"tg.escalation\"},\"routing_keys\":{\"delay\":\"delay\",\"escalation\":\"tg.escalation\"},\"delay_ttl_ms\":60000},\"openai\":{\"default_model\":\"gpt-5-mini\"},\"languages\":{\"supported\":[\"ru\",\"uk\",\"pl\",\"en\",\"other\"],\"default_fallback\":\"other\"}};\n\nconst missing = [];\nconst requirePath = (path) => {\n  const value = path.split('.').reduce((current, key) => current?.[key], config);\n  if (value === undefined || value === null || value === '') missing.push(path);\n};\n\n[\n  'environment',\n  'telegram',\n  'rabbitmq',\n  'openai',\n  'languages',\n  'rabbitmq.exchanges.support',\n  'rabbitmq.exchanges.dead_letter',\n  'rabbitmq.queues.delay',\n  'rabbitmq.queues.escalation',\n  'rabbitmq.routing_keys.delay',\n  'rabbitmq.routing_keys.escalation',\n  'rabbitmq.delay_ttl_ms',\n  'telegram.expert_group.chat_id',\n  'telegram.parse_mode',\n  'openai.default_model',\n  'languages.default_fallback'\n].forEach(requirePath);\n\nif (missing.length) {\n  throw new Error(`Production config validation failed: missing ${missing.join(', ')}`);\n}\n\nreturn [{\n  ...$json,\n  config\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        -224
+      ],
+      "id": "4a6d1b64-5876-49f4-a44e-fb15f9f6e511",
+      "name": "Load Production Config"
+    },
+    {
+      "parameters": {
         "operation": "get",
         "tableId": "telegram_experts",
         "filters": {
@@ -243,9 +256,9 @@
     {
       "parameters": {
         "mode": "exchange",
-        "exchange": "tg.support",
+        "exchange": "={{ $('Load Production Config').item.json.config.rabbitmq.exchanges.support }}",
         "exchangeType": "direct",
-        "routingKey": "delay",
+        "routingKey": "={{ $('Load Production Config').item.json.config.rabbitmq.routing_keys.delay }}",
         "options": {}
       },
       "type": "n8n-nodes-base.rabbitmq",
@@ -326,7 +339,7 @@
       "main": [
         [
           {
-            "node": "Get a expert",
+            "node": "Load Production Config",
             "type": "main",
             "index": 0
           }
@@ -440,6 +453,17 @@
         [
           {
             "node": "IF Runtime Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Production Config": {
+      "main": [
+        [
+          {
+            "node": "Get a expert",
             "type": "main",
             "index": 0
           }

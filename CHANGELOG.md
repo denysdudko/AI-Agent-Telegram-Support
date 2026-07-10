@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-10
+
+### Changed
+
+- Task 011: Updated n8n workflow exports to load the production config contract instead of using hardcoded operational values.
+- Documented that RabbitMQ payload, database schema, runtime state shape, services, and AI node count were unchanged.
+
 ## 2026-07-09
 
 ### Added

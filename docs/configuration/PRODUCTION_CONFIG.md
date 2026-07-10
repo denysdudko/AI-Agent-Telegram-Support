@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the single production configuration contract for the Telegram Support Agent MVP. The contract centralizes operational values that are currently spread across n8n workflow JSON exports and infrastructure setup.
+This document defines the single production configuration contract for the Telegram Support Agent MVP. The contract centralizes operational values in one n8n runtime variable instead of duplicating them across workflow exports.
 
 The contract centralizes configuration without changing database schema, runtime state shape, AI node count, services, or infrastructure.
 
@@ -12,10 +12,31 @@ The contract centralizes configuration without changing database schema, runtime
 - The example config must not contain secrets, tokens, passwords, connection URLs, or credential names.
 - Workflows must continue to use one orchestration layer, one retrieval layer, one answer layer, a single `runtime_state`, and JSON schema everywhere.
 - The config must not introduce Redis, a new service, or a second runtime state store.
-- n8n workflow exports read operational values from this contract instead of relying on scattered hardcoded workflow literals.
+- n8n workflow exports read operational values from `TG_SUPPORT_CONFIG_JSON` instead of relying on scattered hardcoded workflow literals.
+- Workflow exports must not contain duplicated embedded runtime config objects.
 - Secrets remain in n8n credentials or environment-specific secret management, not in this config.
 
-## Config File
+## Runtime Source of Truth
+
+The runtime source of truth is one n8n Variable:
+
+```text
+TG_SUPPORT_CONFIG_JSON
+```
+
+The variable value must be valid JSON and must follow the shape in `config/telegram-support-agent.config.example.json`.
+
+To create it in n8n:
+
+1. Open n8n Variables.
+2. Create `TG_SUPPORT_CONFIG_JSON`.
+3. Copy the JSON from `config/telegram-support-agent.config.example.json`.
+4. Adjust non-secret operational values for the target environment.
+5. Save the variable.
+
+Changing `TG_SUPPORT_CONFIG_JSON` updates both `TG Intake` and `TG Escalation`. If a trigger configuration change, such as `rabbitmq.queues.escalation`, is not applied automatically, reactivate the affected workflow.
+
+## Example Config File
 
 Example path:
 
@@ -23,7 +44,7 @@ Example path:
 config/telegram-support-agent.config.example.json
 ```
 
-Production deployments should provide an environment-specific JSON file with the same shape. The repository example documents defaults and non-secret operational values only.
+Production deployments should use this file as the source value for `TG_SUPPORT_CONFIG_JSON`. The repository example documents defaults and non-secret operational values only.
 
 ## Runtime Configuration Shape
 
@@ -344,7 +365,7 @@ The configuration should be validated with this schema before a workflow uses it
 
 ## Config-Driven Workflow Values
 
-The n8n workflow exports should read these operational values from the production config contract:
+The n8n workflow exports read these operational values from `TG_SUPPORT_CONFIG_JSON`:
 
 - `TG Intake` RabbitMQ publish exchange: `tg.support`.
 - `TG Intake` RabbitMQ publish routing key: `delay`.
@@ -354,13 +375,24 @@ The n8n workflow exports should read these operational values from the productio
 - `TG Escalation` Telegram parse mode: `HTML`.
 - RabbitMQ topology defaults: `tg.support`, `tg.dlx`, `tg.delay`, `tg.escalation`, `delay`, and `60000`.
 
-Task 011 implemented config loading in the workflow exports while keeping the same defaults and business behavior.
+Task 012 removed duplicated embedded config objects from workflow exports. `TG_SUPPORT_CONFIG_JSON` is now the shared runtime configuration source for both workflows.
+
+## Accepted MVP Deferrals
+
+The following items are deferred to the next version and are not part of Task 012:
+
+- retry strategy;
+- partial failure protection;
+- structured logging;
+- monitoring;
+- alerts.
 
 ## Non-Goals
 
 - Workflow exports may read from this contract, but the contract must not change business behavior by itself.
 - No database schema changes are introduced.
-- No implementation code is added.
+- Configuration loading and validation code is allowed inside n8n workflow exports.
 - No new AI nodes are added.
 - No Redis or new service is introduced.
 - No secrets are stored in the example config.
+- No secrets are stored in `TG_SUPPORT_CONFIG_JSON`.

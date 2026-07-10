@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Task 012: Updated n8n workflow exports to use `TG_SUPPORT_CONFIG_JSON` as the single runtime configuration source.
+- Removed duplicated embedded workflow config objects while preserving MVP business behavior and data contracts.
 - Task 011: Updated n8n workflow exports to load the production config contract instead of using hardcoded operational values.
 - Documented that RabbitMQ payload, database schema, runtime state shape, services, and AI node count were unchanged.
 

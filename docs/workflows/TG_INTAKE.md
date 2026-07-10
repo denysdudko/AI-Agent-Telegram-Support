@@ -32,7 +32,7 @@ The workflow:
 
 ## Configuration Loading
 
-`Load Production Config` loads the production configuration contract defaults and validates required config paths before expert lookup, runtime lookup, and RabbitMQ publishing.
+`Load Production Config` reads `TG_SUPPORT_CONFIG_JSON` from n8n Variables, parses it with `JSON.parse`, and validates required config paths and types before expert lookup, runtime lookup, and RabbitMQ publishing.
 
 `Publish` reads RabbitMQ operational values from config:
 
@@ -40,6 +40,8 @@ The workflow:
 - `rabbitmq.routing_keys.delay`
 
 The RabbitMQ payload remains unchanged and still contains only `runtime_id` and `queue_version`.
+
+Changing `TG_SUPPORT_CONFIG_JSON` updates `TG Intake` without editing the workflow export, as long as n8n applies the variable value to the active workflow execution.
 
 ## Normalized Message Contract
 
@@ -112,7 +114,7 @@ If no active waiting runtime exists:
 - `TG Intake` does not decide `needs_escalation`.
 - `TG Intake` only collects messages and manages queue/timer state.
 - AI analysis is handled by `TG Escalation`.
-- Operational values must be read from the production config contract instead of hardcoded workflow literals.
+- Operational values must be read from `TG_SUPPORT_CONFIG_JSON` instead of hardcoded workflow literals.
 
 ## Known Risks / Notes
 

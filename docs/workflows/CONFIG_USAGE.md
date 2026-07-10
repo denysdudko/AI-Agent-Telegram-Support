@@ -8,24 +8,43 @@ The configuration contract is defined in `docs/configuration/PRODUCTION_CONFIG.m
 
 ## Implemented Approach
 
-Both workflow exports include a `Load Production Config` Code node. The node loads the JSON contract defaults from `config/telegram-support-agent.config.example.json`, validates required paths, and exposes the config as `config` for downstream nodes.
+Both workflow exports include a `Load Production Config` Code node. The node reads the n8n Variable `TG_SUPPORT_CONFIG_JSON`, parses it with `JSON.parse`, validates required fields and types, and exposes the parsed object as `config` for downstream nodes.
+
+`TG_SUPPORT_CONFIG_JSON` is the single runtime configuration source of truth for both workflows. The workflow exports do not contain the runtime config values.
+
+## Creating TG_SUPPORT_CONFIG_JSON in n8n
+
+1. Open n8n.
+2. Go to the Variables section.
+3. Create a variable named `TG_SUPPORT_CONFIG_JSON`.
+4. Copy the full JSON value from `config/telegram-support-agent.config.example.json`.
+5. Adjust non-secret operational values for the target environment.
+6. Save the variable.
+
+Do not store secrets in `TG_SUPPORT_CONFIG_JSON`. API keys, bot tokens, database passwords, RabbitMQ URLs, and credential names must remain in n8n credentials or secret management.
+
+Changing `TG_SUPPORT_CONFIG_JSON` updates the runtime configuration used by both `TG Intake` and `TG Escalation`. If a trigger-level setting such as the RabbitMQ trigger queue does not apply automatically after a variable change, reactivate the affected workflow so n8n recreates the trigger subscription.
 
 Validation checks:
 
-- required top-level keys: `environment`, `telegram`, `rabbitmq`, `openai`, and `languages`;
-- required RabbitMQ keys for exchanges, queues, routing keys, and delay TTL;
-- required expert Telegram group chat id;
-- required Telegram parse mode;
-- required OpenAI default model;
-- required fallback language.
+- missing `TG_SUPPORT_CONFIG_JSON` variable;
+- invalid JSON;
+- `environment.name` is a non-empty string;
+- `telegram.expert_group.chat_id` is an integer;
+- `telegram.parse_mode` is a non-empty string;
+- RabbitMQ exchange, queue, and routing key values are non-empty strings;
+- `rabbitmq.delay_ttl_ms` is a positive integer;
+- `openai.default_model` is a non-empty string;
+- `languages.supported` is a non-empty array;
+- `languages.default_fallback` is included in `languages.supported`.
 
 If validation fails, the Code node throws a clear `Production config validation failed` error and stops the workflow before downstream operational steps run.
 
-`TG Escalation` has one trigger-specific exception: the RabbitMQ Trigger queue is evaluated before any Code node can run. Its queue field is still expression-based and uses the same config contract default for `rabbitmq.queues.escalation`; the validation node runs immediately after payload parsing and before runtime loading, AI analysis, or Telegram sends.
+`TG Escalation` has one trigger-specific detail: the RabbitMQ Trigger queue is evaluated before any Code node can run. Its queue field reads directly from `TG_SUPPORT_CONFIG_JSON` with `JSON.parse($vars.TG_SUPPORT_CONFIG_JSON).rabbitmq.queues.escalation`. The validation node then runs immediately after payload parsing and before runtime loading, AI analysis, or Telegram sends.
 
 ## Shared Rules
 
-- Workflows must read one JSON configuration object for operational values.
+- Workflows must read one JSON configuration object from `TG_SUPPORT_CONFIG_JSON` for operational values.
 - Secrets must stay in n8n credentials or environment-specific secret management.
 - Config reads must not change the documented architecture: one orchestration layer, one retrieval layer, one answer layer, one `runtime_state`, and JSON schema everywhere.
 - Config reads must not introduce Redis, a new service, or a second runtime store.
@@ -34,7 +53,7 @@ If validation fails, the Code node throws a clear `Production config validation 
 
 ## TG Intake Usage
 
-`TG Intake` reads config immediately after `Normalize Message` and before expert lookup, runtime lookup, runtime creation/update, and RabbitMQ publishing.
+`TG Intake` reads `TG_SUPPORT_CONFIG_JSON` immediately after `Normalize Message` and before expert lookup, runtime lookup, runtime creation/update, and RabbitMQ publishing.
 
 Required config values:
 
@@ -63,7 +82,7 @@ Implemented replacements in `TG Intake`:
 
 ## TG Escalation Usage
 
-`TG Escalation` reads config after `Parse Payload` and before `Load Runtime State`, stale-event checks, AI analysis, message building, or Telegram sends.
+`TG Escalation` reads `TG_SUPPORT_CONFIG_JSON` after `Parse Payload` and before `Load Runtime State`, stale-event checks, AI analysis, message building, or Telegram sends.
 
 Required config values:
 
@@ -91,7 +110,7 @@ Usage requirements:
 
 Implemented replacements in `TG Escalation`:
 
-- RabbitMQ trigger queue uses an expression based on the config contract default for `rabbitmq.queues.escalation`.
+- RabbitMQ trigger queue reads directly from `JSON.parse($vars.TG_SUPPORT_CONFIG_JSON).rabbitmq.queues.escalation`.
 - OpenAI model now reads from `openai.default_model`.
 - Expert Telegram chat id now reads from `telegram.expert_group.chat_id`.
 - Expert and user Telegram parse mode now reads from `telegram.parse_mode`.
@@ -112,9 +131,21 @@ RabbitMQ topology must come from the same config contract:
 
 ## Remaining Notes
 
-- The current implementation embeds the JSON example contract defaults in each workflow export through the `Load Production Config` node.
-- A later deployment task may replace the embedded defaults with environment-specific JSON injection while keeping the same contract shape.
+- The current implementation does not embed duplicated JSON config objects in workflow exports.
+- `TG_SUPPORT_CONFIG_JSON` must follow the same shape as `config/telegram-support-agent.config.example.json`.
 - Do not add new AI nodes.
 - Do not change database schema.
 - Do not change `runtime_state` shape unless a future explicit task requires it.
 - Do not store secrets in the JSON config.
+
+## Deferred Scope
+
+The following items are accepted MVP deferrals and are not part of Task 012:
+
+- retry strategy;
+- partial failure protection;
+- structured logging;
+- monitoring;
+- alerts.
+
+These items belong to the next version.
